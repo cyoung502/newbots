@@ -54,17 +54,18 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
 
     @Override
     public void start() {
-        System.out.println("Script starting up...");
+        log.info("Script starting up...");
         ctx.input.speed(25);
+        resetCameraYaw();
+        resetCameraPitch();
+        resetCameraZoom();
     }
 
     @Override
     public void poll() {
-
-        System.out.println(ctx.camera.pitch());
-//        final State state = getState();
-        final State state = null;
-//        System.out.println("Current State: " + state);
+        final State state = getState();
+//        final State state = null;
+        log.info("Current State: " + state);
         if (state == null) {
             return;
         }
@@ -609,6 +610,20 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
         }
     }
 
+    private void resetCameraYaw(){
+        if(ctx.camera.yaw() <= 10 || ctx.camera.y() >= 350){
+            return;
+        }
+        ctx.widgets.widget(548).component(7).click();
+    }
+
+    public void resetCameraPitch(){
+        if(ctx.camera.pitch() >= 95){
+            return;
+        }
+        ctx.camera.pitch(true);
+    }
+
     @Override
     public void repaint(Graphics graphics) {
         if(!started){
@@ -714,6 +729,22 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
             ctx.movement.step(finalTile);
             Condition.sleep(Random.nextInt(600, 1200));
         }
+    }
+
+    private void resetCameraZoom(){
+        if (ctx.widgets.widget(261).component(14).screenPoint().x == 601){
+            return;
+        }
+        ctx.game.tab(Game.Tab.OPTIONS);
+        Condition.wait(new Callable<Boolean>() {
+            @Override
+            public Boolean call() throws Exception {
+                return ctx.widgets.widget(261).component(14).visible();
+            }
+        });
+        ctx.input.move(new Point(697,265));
+        ctx.input.drag(new Point(601,265), true);
+        ctx.input.release(0);
     }
 
     private enum State {
