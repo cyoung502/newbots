@@ -6,7 +6,13 @@ import org.powerbot.script.rt4.*;
 import org.powerbot.script.rt4.ClientContext;
 
 import java.awt.*;
+import java.io.IOException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.concurrent.Callable;
+import java.util.logging.FileHandler;
+import java.util.logging.SimpleFormatter;
 
 
 @Script.Manifest(
@@ -54,7 +60,18 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
 
     @Override
     public void start() {
-        log.info("Script starting up...");
+        try {
+            FileHandler fh;
+            DateFormat df = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
+            Date date = new Date();
+            SimpleFormatter sf = new SimpleFormatter();
+            fh = new FileHandler(getStorageDirectory() + "/" + df.format(date) + ".log");
+            fh.setFormatter(sf);
+            log.addHandler(fh);
+            log.info("Script starting up...");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         ctx.input.speed(25);
         resetCameraYaw();
         resetCameraPitch();
@@ -65,10 +82,12 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
     public void poll() {
         final State state = getState();
 //        final State state = null;
-        log.info("Current State: " + state);
+
         if (state == null) {
             return;
         }
+
+        log.info("Current State: " + state);
 
         switch (state) {
             case START_DREAM:
@@ -630,7 +649,7 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
             return;
         }
         final Graphics2D g = (Graphics2D) graphics;
-        Paint.drawCrosshair(g, ctx, 3);
+//        Paint.drawCrosshair(g, ctx, 3);
         Paint.drawRectangleBordered(g,3,3,250, 100,2,COLOR_BACKGROUND,COLOR_BORDER);
         Paint.drawRectangleBordered(g,3,138,250, 200,2 ,COLOR_BACKGROUND, COLOR_BORDER);
         Paint.drawTextShadow(g,5,20, COLOR_TEXT, COLOR_SHADOW, FONT_HEADING, "Auto Nightmare Zone - Brotein");
@@ -742,9 +761,14 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
                 return ctx.widgets.widget(261).component(14).visible();
             }
         });
-        ctx.input.move(new Point(697,265));
-        ctx.input.drag(new Point(601,265), true);
-        ctx.input.release(0);
+        ctx.input.move(new Point(601,265));
+        ctx.input.click(1);
+        Condition.wait(new Callable<Boolean>() {
+            @Override
+            public Boolean call() throws Exception {
+                return ctx.widgets.widget(261).component(14).screenPoint().x == 601;
+            }
+        });
     }
 
     private enum State {
