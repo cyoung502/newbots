@@ -649,7 +649,7 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
             return;
         }
         final Graphics2D g = (Graphics2D) graphics;
-//        Paint.drawCrosshair(g, ctx, 3);
+        Paint.drawCrosshair(g, ctx, 3);
         Paint.drawRectangleBordered(g,3,3,250, 100,2,COLOR_BACKGROUND,COLOR_BORDER);
         Paint.drawRectangleBordered(g,3,138,250, 200,2 ,COLOR_BACKGROUND, COLOR_BORDER);
         Paint.drawTextShadow(g,5,20, COLOR_TEXT, COLOR_SHADOW, FONT_HEADING, "Auto Nightmare Zone - Brotein");
