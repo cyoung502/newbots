@@ -14,6 +14,9 @@ import java.util.concurrent.Callable;
 import java.util.logging.FileHandler;
 import java.util.logging.SimpleFormatter;
 
+import static java.util.logging.Level.FINE;
+import static java.util.logging.Level.FINER;
+
 
 @Script.Manifest(
         name = "Nightmare Zone",
@@ -67,6 +70,7 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
             SimpleFormatter sf = new SimpleFormatter();
             fh = new FileHandler(getStorageDirectory() + "/" + df.format(date) + ".log");
             fh.setFormatter(sf);
+            fh.setLevel(FINER);
             log.addHandler(fh);
             log.info("Script starting up...");
         } catch (IOException e) {
@@ -245,7 +249,7 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
 
     private int getAbsorptionPoints(){
         if(ctx.widgets.widget(202).valid()){
-            String s =  ctx.widgets.widget(202).component(1).component(9).text();
+            String s =  ctx.widgets.widget(202).component(3).component(5).text();
             if(s.equals("")){
                 return -1;
             }
@@ -256,7 +260,7 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
 
     private String getRewardPoints() {
         if (ctx.widgets.widget(202).valid()) {
-            String s = ctx.widgets.widget(202).component(1).component(3).text();
+            String s = ctx.widgets.widget(202).component(4).component(3).text();
             return s.substring(s.indexOf('>') + 1, s.length());
         }
         return null;
@@ -630,17 +634,46 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
     }
 
     private void resetCameraYaw(){
+        log.fine("Resetting Camera Yaw...");
         if(ctx.camera.yaw() <= 10 || ctx.camera.y() >= 350){
+            log.finer("Camera Yaw is offset by less than 20 degrees, no need to reset!");
             return;
         }
         ctx.widgets.widget(548).component(7).click();
+        log.fine("Camera Yaw reset.");
     }
 
     public void resetCameraPitch(){
+        log.fine("Resetting Camera Pitch...");
         if(ctx.camera.pitch() >= 95){
+            log.finer("Camera Pitch is already greater than 95 degrees!");
             return;
         }
         ctx.camera.pitch(true);
+        log.fine("Camera Pitch reset.");
+    }
+
+    private void resetCameraZoom(){
+        log.fine("Resetting Camera Zoom...");
+        if (ctx.widgets.widget(261).component(14).screenPoint().x == 601){
+            return;
+        }
+        ctx.game.tab(Game.Tab.OPTIONS);
+        Condition.wait(new Callable<Boolean>() {
+            @Override
+            public Boolean call() throws Exception {
+                return ctx.widgets.widget(261).component(14).visible();
+            }
+        });
+        ctx.input.move(new Point(601,265));
+        ctx.input.click(1);
+        Condition.wait(new Callable<Boolean>() {
+            @Override
+            public Boolean call() throws Exception {
+                return ctx.widgets.widget(261).component(14).screenPoint().x == 601;
+            }
+        });
+        log.fine("Camera Zoom reset.");
     }
 
     @Override
@@ -748,27 +781,6 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
             ctx.movement.step(finalTile);
             Condition.sleep(Random.nextInt(600, 1200));
         }
-    }
-
-    private void resetCameraZoom(){
-        if (ctx.widgets.widget(261).component(14).screenPoint().x == 601){
-            return;
-        }
-        ctx.game.tab(Game.Tab.OPTIONS);
-        Condition.wait(new Callable<Boolean>() {
-            @Override
-            public Boolean call() throws Exception {
-                return ctx.widgets.widget(261).component(14).visible();
-            }
-        });
-        ctx.input.move(new Point(601,265));
-        ctx.input.click(1);
-        Condition.wait(new Callable<Boolean>() {
-            @Override
-            public Boolean call() throws Exception {
-                return ctx.widgets.widget(261).component(14).screenPoint().x == 601;
-            }
-        });
     }
 
     private enum State {
