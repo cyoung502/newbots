@@ -4,6 +4,7 @@ import org.powerbot.Con;
 import org.powerbot.script.*;
 import org.powerbot.script.rt4.*;
 import org.powerbot.script.rt4.ClientContext;
+import org.powerbot.script.rt4.Component;
 
 import java.awt.*;
 import java.io.IOException;
@@ -70,13 +71,19 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
             SimpleFormatter sf = new SimpleFormatter();
             fh = new FileHandler(getStorageDirectory() + "/" + df.format(date) + ".log");
             fh.setFormatter(sf);
-            fh.setLevel(FINER);
             log.addHandler(fh);
             log.info("Script starting up...");
         } catch (IOException e) {
             e.printStackTrace();
         }
         ctx.input.speed(25);
+        if(ctx.inventory.select().id(ROCK_CAKE).isEmpty()){
+            log.severe("No rock cake found, stopping script!");
+            ctx.controller.stop();
+            return;
+        }
+        resetDisplayMode();
+        turnOnAutoRetaliate();
         resetCameraYaw();
         resetCameraPitch();
         resetCameraZoom();
@@ -86,7 +93,7 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
     public void poll() {
         final State state = getState();
 //        final State state = null;
-
+//
         if (state == null) {
             return;
         }
@@ -522,7 +529,9 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
     }
 
     private void flickPrayer(){
+        log.info("Flicking prayer...");
         if(ctx.prayer.prayerPoints() == 0){
+            log.severe("Out of prayer points!");
             return;
         }
         ctx.game.tab(Game.Tab.PRAYER);
@@ -539,6 +548,7 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
                 return ctx.widgets.widget(541).component(11).component(0).visible();
             }
         });
+        log.info("Rapid Renewal: On");
         ctx.widgets.widget(541).component(11).click();
         Condition.wait(new Callable<Boolean>() {
             @Override
@@ -546,7 +556,9 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
                 return ctx.widgets.widget(541).component(11).component(1).visible();
             }
         });
+        log.info("Rapid Renewal: Off");
         prayerTimer = getRuntime();
+        log.info("Finished flicking prayer!");
     }
 
     private void usePowerSurge(){
@@ -634,28 +646,29 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
     }
 
     private void resetCameraYaw(){
-        log.fine("Resetting Camera Yaw...");
+        log.info("Resetting camera yaw...");
         if(ctx.camera.yaw() <= 10 || ctx.camera.y() >= 350){
-            log.finer("Camera Yaw is offset by less than 20 degrees, no need to reset!");
+            log.warning("Camera yaw is offset by less than 20 degrees, no need to reset!");
             return;
         }
         ctx.widgets.widget(548).component(7).click();
-        log.fine("Camera Yaw reset.");
+        log.info("Camera yaw reset!");
     }
 
-    public void resetCameraPitch(){
-        log.fine("Resetting Camera Pitch...");
+    private void resetCameraPitch(){
+        log.info("Resetting camera pitch...");
         if(ctx.camera.pitch() >= 95){
-            log.finer("Camera Pitch is already greater than 95 degrees!");
+            log.warning("Camera pitch is already greater than 95 degrees!");
             return;
         }
         ctx.camera.pitch(true);
-        log.fine("Camera Pitch reset.");
+        log.info("Camera pitch reset!");
     }
 
     private void resetCameraZoom(){
-        log.fine("Resetting Camera Zoom...");
+        log.info("Resetting camera Zoom...");
         if (ctx.widgets.widget(261).component(14).screenPoint().x == 601){
+            log.warning("Camera zoom already set!");
             return;
         }
         ctx.game.tab(Game.Tab.OPTIONS);
@@ -673,7 +686,53 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
                 return ctx.widgets.widget(261).component(14).screenPoint().x == 601;
             }
         });
-        log.fine("Camera Zoom reset.");
+        log.info("Camera zoom reset!");
+    }
+
+    private void turnOnAutoRetaliate(){
+        log.info("Turning on auto-retaliate...");
+        if(ctx.varpbits.varpbit(172) == 0){
+            log.warning("Auto-retaliate is already enabled!");
+            return;
+        }
+        ctx.game.tab(Game.Tab.ATTACK);
+        Condition.wait(new Callable<Boolean>() {
+            @Override
+            public Boolean call() throws Exception {
+                return ctx.widgets.widget(593).component(28).visible();
+            }
+        });
+        ctx.widgets.widget(593).component(28).click();
+        Condition.wait(new Callable<Boolean>() {
+            @Override
+            public Boolean call() throws Exception {
+                return ctx.varpbits.varpbit(172) == 0;
+            }
+        });
+        log.info("Auto-retaliate is now enabled!");
+    }
+
+    private void resetDisplayMode(){
+        log.info("Setting display mode to fixed...");
+        if(ctx.widgets.widget(261).component(22).component(9).textureId() == 1572){
+            log.warning("Display mode is already in fixed!");
+            return;
+        }
+        ctx.game.tab(Game.Tab.OPTIONS);
+        Condition.wait(new Callable<Boolean>() {
+            @Override
+            public Boolean call() throws Exception {
+                return ctx.widgets.widget(261).component(22).component(9).visible();
+            }
+        });
+        ctx.widgets.widget(261).component(22).component(9).click();
+        Condition.wait(new Callable<Boolean>() {
+            @Override
+            public Boolean call() throws Exception {
+                return ctx.widgets.widget(261).component(22).component(9).textureId() == 1572;
+            }
+        });
+        log.info("Display mode set to fixed!");
     }
 
     @Override
@@ -682,6 +741,12 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
             return;
         }
         final Graphics2D g = (Graphics2D) graphics;
+        if(ctx.players.local().tile().compareTo(finalTile) == 0){
+            g.setColor(new Color(0,255,0,64));
+        } else {
+            g.setColor(new Color(255,0,0,64));
+        }
+        g.fillPolygon(finalTile.matrix(ctx).bounds());
         Paint.drawCrosshair(g, ctx, 3);
         Paint.drawRectangleBordered(g,3,3,250, 100,2,COLOR_BACKGROUND,COLOR_BORDER);
         Paint.drawRectangleBordered(g,3,138,250, 200,2 ,COLOR_BACKGROUND, COLOR_BORDER);
@@ -770,6 +835,7 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
     public void messaged(MessageEvent e){
         final String msg = e.text().toLowerCase();
         if(msg.equals("you wake up feeling refreshed.")){
+            log.severe("You have died, script stopping!!!");
             ctx.controller.stop();
         }
         else if(msg.equals("your feel a surge of special attack power!")){

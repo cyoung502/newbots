@@ -1,6 +1,9 @@
 package scripts;
 
+import org.powerbot.script.*;
+import org.powerbot.script.rt4.*;
 import org.powerbot.script.rt4.ClientContext;
+import org.powerbot.script.rt4.Component;
 
 import java.awt.*;
 
