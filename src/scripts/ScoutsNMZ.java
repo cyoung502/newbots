@@ -1,12 +1,12 @@
 package scripts;
 
-import org.powerbot.Con;
+import com.sun.org.apache.bcel.internal.generic.NEW;
 import org.powerbot.script.*;
 import org.powerbot.script.rt4.*;
 import org.powerbot.script.rt4.ClientContext;
-import org.powerbot.script.rt4.Component;
 
 import java.awt.*;
+import java.awt.Component;
 import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -15,12 +15,9 @@ import java.util.concurrent.Callable;
 import java.util.logging.FileHandler;
 import java.util.logging.SimpleFormatter;
 
-import static java.util.logging.Level.FINE;
-import static java.util.logging.Level.FINER;
-
 
 @Script.Manifest(
-        name = "Nightmare Zone",
+        name = "Auto Nightmare Zone",
         description = "Will AFK the nightmare zone for dank xp drops.",
         properties = "client = 4;"
 )
@@ -41,6 +38,8 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
     public static final int RUNE_ARROWS = 892;
     public static final int DRAGON_SCIMITAR = 4587;
     public static final int DRAGON_DAGGER = 5698;
+    public static final int GRANITE_MAUL = 4153;
+    public static final int[] SPECIAL_WEAPONS = {DRAGON_DAGGER, GRANITE_MAUL};
     public static final int BLOW_PIPE = 12926;
     public static final int HOLY_BLESSING = 20220;
     public static final Font FONT_BODY = new Font("Default", Font.PLAIN, 12);
@@ -61,6 +60,7 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
     private int xpStartMagic = 0;
     private long powerSurgeTimer = -46000;
     private boolean started = false;
+    private int mainWeapon = 0;
 
     @Override
     public void start() {
@@ -87,16 +87,14 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
         resetCameraYaw();
         resetCameraPitch();
         resetCameraZoom();
+        mainWeapon = getEquipWeapon();
     }
 
     @Override
     public void poll() {
         final State state = getState();
 //        final State state = null;
-//
-        if (state == null) {
-            return;
-        }
+        if (state == null) {return;}
 
         log.info("Current State: " + state);
 
@@ -214,9 +212,9 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
         if (getAbsorptionPoints() < 200) {
             return State.DRINK_ABSORPTION;
         }
-//        if(timer - powerSurgeTimer < 45000){
-//            return State.SPECIAL_ATTACK;
-//        }
+        if(timer - powerSurgeTimer < 45000){
+            return State.SPECIAL_ATTACK;
+        }
         if (!ctx.players.local().tile().equals(finalTile)) {
             return State.RUN_TO_TILE;
         }
@@ -224,9 +222,9 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
                 ctx.combat.health() >= 2){
             return State.EAT_CAKE;
         }
-//        if(ctx.objects.select().id(POWER_SURGE).poll().valid()){
-//            return State.POWER_SURGE;
-//        }
+        if(ctx.objects.select().id(POWER_SURGE).poll().valid()){
+            return State.POWER_SURGE;
+        }
         return null;
     }
 
@@ -441,6 +439,7 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
     }
 
     private void startDream() {
+        log.info("Starting the dream...");
         Npc dominicOnion = ctx.npcs.select().id(DOMINIC_ONION).poll();
         dominicOnion.interact("Dream", "Dominic Onion");
         Condition.wait(new Callable<Boolean>() {
@@ -449,6 +448,10 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
                 return ctx.widgets.widget(219).component(0).component(4).visible();
             }
         });
+        if(!ctx.widgets.widget(219).component(0).component(4).visible()){
+            log.severe("Dialog 1/4 never appeared!");
+            return;
+        }
         ctx.widgets.widget(219).component(0).component(4).click();
         Condition.wait(new Callable<Boolean>() {
             @Override
@@ -456,6 +459,10 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
                 return ctx.widgets.widget(231).component(3).visible();
             }
         });
+        if(!ctx.widgets.widget(231).component(3).visible()){
+            log.severe("Dialog 2/4 never appeared!");
+            return;
+        }
         ctx.widgets.widget(231).component(3).click();
         Condition.wait(new Callable<Boolean>() {
             @Override
@@ -463,6 +470,10 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
                 return ctx.widgets.widget(219).component(0).component(1).visible();
             }
         });
+        if(!ctx.widgets.widget(219).component(0).component(1).visible()){
+            log.severe("Dialog 3/4 never appeared!");
+            return;
+        }
         ctx.widgets.widget(219).component(0).component(1).click();
         Condition.wait(new Callable<Boolean>() {
             @Override
@@ -470,11 +481,21 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
                 return ctx.widgets.widget(231).component(3).visible();
             }
         });
+        if(!ctx.widgets.widget(231).component(3).visible()){
+            log.severe("Dialog 4/4 never appeared!");
+            return;
+        }
         ctx.widgets.widget(231).component(3).click();
+        log.info("Finished starting the dream!");
     }
 
     private void drinkPotion(){
+        log.info("Drinking the start-potion...");
         GameObject potion = ctx.objects.select().id(POTION).poll();
+        if(!potion.valid()){
+            log.severe("Can't find the start-potion!");
+            return;
+        }
         potion.interact("Drink", "Potion");
         Condition.wait(new Callable<Boolean>() {
             @Override
@@ -482,11 +503,21 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
                 return ctx.widgets.widget(129).component(6).component(9).visible();
             }
         });
+        if(!ctx.widgets.widget(129).component(6).component(9).visible()){
+            log.severe("Dialog screen never appeared!");
+            return;
+        }
         ctx.widgets.widget(129).component(6).component(9).click();
+        log.info("Finished drinking the start-potion!");
     }
 
     private void withdrawOverload(){
+        log.info("Withdrawing overload potions...");
         GameObject overloadBarrel = ctx.objects.select().id(OVERLOAD_BARREL).poll();
+        if(!overloadBarrel.valid()){
+            log.severe("Can't find overload barrel");
+            return;
+        }
         overloadBarrel.interact("Take", "Overload potion");
         Condition.wait(new Callable<Boolean>() {
             @Override
@@ -494,11 +525,20 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
                 return ctx.widgets.widget(162).component(36).visible();
             }
         });
+        if(!ctx.widgets.widget(162).component(36).visible()){
+            log.severe("Input screen never appeared!");
+        }
         ctx.input.sendln("24");
+        log.info("Finished withdrawing overload potions!");
     }
 
     private void withdrawAbsorption(){
+        log.info("Withdrawing absorption potions...");
         GameObject absorptionBarrel = ctx.objects.select().id(ABSORPTION_BARREL).poll();
+        if(!absorptionBarrel.valid()){
+            log.severe("Can't find absorption barrel!");
+            return;
+        }
         absorptionBarrel.interact("Take", "Absorption potion");
         Condition.wait(new Callable<Boolean>() {
             @Override
@@ -506,26 +546,39 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
                 return ctx.widgets.widget(162).component(36).visible();
             }
         });
+        if(!ctx.widgets.widget(162).component(36).visible()){
+            log.severe("Input screen never appeared!");
+            return;
+        }
         ctx.input.sendln(String.valueOf(Random.nextInt(84, 999)));
+        log.info("Finished withdrawing absorption potions!");
     }
 
     private void eatToHealth(int health){
+        log.info("Eating to " + health + " health...");
         ctx.game.tab(Game.Tab.INVENTORY);
+        Item rockCake = ctx.inventory.select().id(ROCK_CAKE).poll();
+        if (!rockCake.valid()){
+            log.severe("No rockcake found in inventory!");
+            return;
+        }
         int tempHealth = ctx.skills.realLevel(Constants.SKILLS_HITPOINTS);
         int damage = tempHealth / 10;
         tempHealth = ctx.combat.health();
-        Item rockCake = ctx.inventory.select().id(ROCK_CAKE).poll();
-        if (rockCake.valid()){
-            for(int i = 1; i < (tempHealth - health) / damage; i ++){
-                rockCake.interact("Guzzle", "Dwarven rock cake");
-                Condition.sleep(Random.nextInt(1200, 1300));
-            }
-            tempHealth = ctx.combat.health();
-            for(int j = 0; j < (tempHealth - health); j++){
-                rockCake.interact("Eat", "Dwarven rock cake");
-                Condition.sleep(Random.nextInt(600, 700));
-            }
+        int limitHealth =  (tempHealth - health) / damage;
+        for(int i = 1; i < limitHealth; i ++){
+            log.info("Taking big-bite (" + i + "/" + (limitHealth - 1) + ")");
+            rockCake.interact("Guzzle", "Dwarven rock cake");
+            Condition.sleep(Random.nextInt(1200, 1300));
         }
+        tempHealth = ctx.combat.health();
+        limitHealth = tempHealth - health;
+        for(int j = 0; j < limitHealth; j++){
+            log.info("Taking small-bite (" + (j + 1) + "/" + limitHealth + ")");
+            rockCake.interact("Eat", "Dwarven rock cake");
+            Condition.sleep(Random.nextInt(600, 700));
+        }
+        log.info("Finished eating to " + health + " health!");
     }
 
     private void flickPrayer(){
@@ -563,86 +616,38 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
 
     private void usePowerSurge(){
         final GameObject powerSurge = ctx.objects.select().id(POWER_SURGE).nearest().poll();
-        Tile tile = powerSurge.tile();
+        final Tile tile = powerSurge.tile();
         ctx.camera.turnTo(tile);
         ctx.movement.step(tile);
-        Condition.sleep(Random.nextInt(600, 700));
-        equipSpecialWeapons();
+        Condition.wait(new Callable<Boolean>() {
+            @Override
+            public Boolean call() throws Exception {
+                return ctx.objects.select().id(POWER_SURGE).poll().tile().matrix(ctx).inViewport();
+            }
+        });
+        Condition.wait(new Callable<Boolean>() {
+            @Override
+            public Boolean call() throws Exception {
+                return !ctx.players.local().inMotion() && tile.distanceTo(ctx.players.local().tile()) < 5;
+            }
+        });
         powerSurge.interact("Activate", "Power surge");
-    }
-
-    private void equipSpecialWeapons() {
-        int weaponID = ctx.equipment.itemAt(Equipment.Slot.MAIN_HAND).id();
-        switch (weaponID){
-            case DRAGON_SCIMITAR:
-                ctx.game.tab(Game.Tab.INVENTORY);
-                ctx.inventory.select().id(DRAGON_DAGGER).first().poll().interact("Wield", "Dragon dagger(p++)");
-                Condition.wait(new Callable<Boolean>() {
-                    @Override
-                    public Boolean call() throws Exception {
-                        return ctx.equipment.itemAt(Equipment.Slot.MAIN_HAND).id() == DRAGON_DAGGER;
-                    }
-                });
-                break;
-            case BLOW_PIPE:
-                ctx.game.tab(Game.Tab.INVENTORY);
-                ctx.inventory.select().id(MAGIC_SHORTBOW).first().poll().interact("Wield", "Magic Shortbow (i)");
-                Condition.wait(new Callable<Boolean>() {
-                    @Override
-                    public Boolean call() throws Exception {
-                        return ctx.equipment.itemAt(Equipment.Slot.MAIN_HAND).id() == MAGIC_SHORTBOW;
-                    }
-                });
-                ctx.inventory.select().id(RUNE_ARROWS).first().poll().interact("Wield", "Rune arrow");
-                Condition.wait(new Callable<Boolean>() {
-                    @Override
-                    public Boolean call() throws Exception {
-                        return ctx.equipment.itemAt(Equipment.Slot.QUIVER).id() == RUNE_ARROWS;
-                    }
-                });
-                break;
-        }
-    }
-
-    private void reEquipWeapons() {
-        int weaponID = ctx.equipment.itemAt(Equipment.Slot.MAIN_HAND).id();
-        switch (weaponID){
-            case DRAGON_DAGGER:
-                ctx.game.tab(Game.Tab.INVENTORY);
-                ctx.inventory.select().id(DRAGON_SCIMITAR).first().poll().interact("Wield", "Dragon scimitar");
-                Condition.wait(new Callable<Boolean>() {
-                    @Override
-                    public Boolean call() throws Exception {
-                        return ctx.equipment.itemAt(Equipment.Slot.MAIN_HAND).id() == DRAGON_SCIMITAR;
-                    }
-                });
-                break;
-            case MAGIC_SHORTBOW:
-                ctx.game.tab(Game.Tab.INVENTORY);
-                ctx.inventory.select().id(BLOW_PIPE).first().poll().interact("Wield", "Toxic blowpipe");
-                Condition.wait(new Callable<Boolean>() {
-                    @Override
-                    public Boolean call() throws Exception {
-                        return ctx.equipment.itemAt(Equipment.Slot.MAIN_HAND).id() == BLOW_PIPE;
-                    }
-                });
-                ctx.inventory.select().id(HOLY_BLESSING).first().poll().interact("Equip", "Holy blessing");
-                Condition.wait(new Callable<Boolean>() {
-                    @Override
-                    public Boolean call() throws Exception {
-                        return ctx.equipment.itemAt(Equipment.Slot.QUIVER).id() == HOLY_BLESSING;
-                    }
-                });
-                break;
-        }
+        Condition.wait(new Callable<Boolean>() {
+            @Override
+            public Boolean call() throws Exception {
+                return ctx.widgets.widget(162).component(50).component(0).text().contains("You feel a surge");
+            }
+        });
+        equipSpecialWeapon();
     }
 
     private void specialAttack(){
-        ctx.game.tab(Game.Tab.ATTACK);
-        if (ctx.combat.specialPercentage() >= 50){
-            ctx.widgets.widget(593).component(34).click();
-            Condition.sleep(600);
+        if(ctx.combat.specialPercentage() == 0){
+            return;
         }
+        ctx.game.tab(Game.Tab.ATTACK);
+        ctx.widgets.widget(593).component(34).click();
+        Condition.sleep(600);
     }
 
     private void resetCameraYaw(){
@@ -733,6 +738,48 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
             }
         });
         log.info("Display mode set to fixed!");
+    }
+
+    private boolean detectSpecialWeapon(){
+        return !ctx.inventory.select().id(SPECIAL_WEAPONS).isEmpty();
+    }
+
+    private int getEquipWeapon(){
+        return ctx.equipment.itemAt(Equipment.Slot.MAIN_HAND).id();
+    }
+
+    private void equipSpecialWeapon(){
+        if(!detectSpecialWeapon()){
+            return;
+        }
+        if(ctx.equipment.itemAt(Equipment.Slot.MAIN_HAND).id() == -1){
+            return;
+        }
+        ctx.game.tab(Game.Tab.INVENTORY);
+        ctx.inventory.select().id(SPECIAL_WEAPONS).poll().click();
+        Condition.wait(new Callable<Boolean>() {
+            @Override
+            public Boolean call() throws Exception {
+                for(int i = 0; i < SPECIAL_WEAPONS.length; i++){
+                    return ctx.equipment.itemAt(Equipment.Slot.MAIN_HAND).id() == SPECIAL_WEAPONS[i];
+                }
+                return true;
+            }
+        });
+    }
+
+    private void equipMainHand(final int weapon){
+        if(ctx.inventory.select().id(mainWeapon).isEmpty()){
+            return;
+        }
+        ctx.game.tab(Game.Tab.INVENTORY);
+        ctx.inventory.select().id(weapon).poll().click();
+        Condition.wait(new Callable<Boolean>() {
+            @Override
+            public Boolean call() throws Exception {
+                return ctx.equipment.itemAt(Equipment.Slot.MAIN_HAND).id() == weapon;
+            }
+        });
     }
 
     @Override
@@ -842,7 +889,7 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
             powerSurgeTimer = getRuntime();
         }
         else if(msg.equals("your surge of special attack power has ended.")){
-            reEquipWeapons();
+            equipMainHand(mainWeapon);
             ctx.camera.turnTo(finalTile);
             ctx.movement.step(finalTile);
             Condition.sleep(Random.nextInt(600, 1200));
