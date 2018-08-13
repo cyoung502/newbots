@@ -29,4 +29,16 @@ public class Paint {
         g.setColor(text);
         g.drawString(s,x,y);
     }
+
+    public static void drawBorderPolygon(Graphics2D g, Polygon p){
+        g.fillPolygon(p);
+        g.setColor(new Color(0,0,0));
+        for(int i = 0; i < p.npoints; i++){
+            if(i == p.npoints - 1){
+                g.drawLine(p.xpoints[i], p.ypoints[i], p.xpoints[0], p.ypoints[0]);
+            } else {
+                g.drawLine(p.xpoints[i], p.ypoints[i], p.xpoints[i + 1], p.ypoints[i + 1]);
+            }
+        }
+    }
 }

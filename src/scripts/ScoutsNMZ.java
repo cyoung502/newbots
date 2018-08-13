@@ -1,12 +1,10 @@
 package scripts;
 
-import com.sun.org.apache.bcel.internal.generic.NEW;
 import org.powerbot.script.*;
 import org.powerbot.script.rt4.*;
 import org.powerbot.script.rt4.ClientContext;
 
 import java.awt.*;
-import java.awt.Component;
 import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -34,14 +32,9 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
     public static final int POWER_SURGE = 26264;
     public static final int[] ABSORPTION_POTION = {11734, 11735, 11736, 11737};
     public static final int[] OVERLOAD_POTION = {11730, 11731, 11732, 11733};
-    public static final int MAGIC_SHORTBOW = 12788;
-    public static final int RUNE_ARROWS = 892;
-    public static final int DRAGON_SCIMITAR = 4587;
     public static final int DRAGON_DAGGER = 5698;
     public static final int GRANITE_MAUL = 4153;
     public static final int[] SPECIAL_WEAPONS = {DRAGON_DAGGER, GRANITE_MAUL};
-    public static final int BLOW_PIPE = 12926;
-    public static final int HOLY_BLESSING = 20220;
     public static final Font FONT_BODY = new Font("Default", Font.PLAIN, 12);
     public static final Font FONT_HEADING = new Font("Default", Font.PLAIN, 18);
     public static final Color COLOR_BACKGROUND = new Color(90,73,44);
@@ -61,6 +54,7 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
     private long powerSurgeTimer = -46000;
     private boolean started = false;
     private int mainWeapon = 0;
+    private int offHandWeapon = 0;
 
     @Override
     public void start() {
@@ -87,7 +81,8 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
         resetCameraYaw();
         resetCameraPitch();
         resetCameraZoom();
-        mainWeapon = getEquipWeapon();
+        mainWeapon = getMainWeapon();
+        offHandWeapon = getOffHandWeapon();
     }
 
     @Override
@@ -121,6 +116,9 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
                 xpStartRange = getXpCombat(Experience.RANGE);
                 xpStartMagic = getXpCombat(Experience.MAGIC);
                 started = true;
+                break;
+            case SPECIAL_ATTACK:
+                specialAttack();
                 break;
             case DRINK_ABSORPTION:
                 ctx.game.tab(Game.Tab.INVENTORY);
@@ -188,11 +186,11 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
                 Condition.sleep(Random.nextInt(600, 1200));
                 break;
             case POWER_SURGE:
+                if(!detectSpecialWeapon()){
+                    break;
+                }
                 usePowerSurge();
                 powerSurgeTimer = getRuntime();
-                break;
-            case SPECIAL_ATTACK:
-                specialAttack();
                 break;
         }
     }
@@ -642,12 +640,21 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
     }
 
     private void specialAttack(){
+        if(!ctx.objects.select().id(POWER_SURGE).isEmpty()){
+            return;
+        }
         if(ctx.combat.specialPercentage() == 0){
             return;
         }
         ctx.game.tab(Game.Tab.ATTACK);
+        final int specialAttack = ctx.combat.specialPercentage();
         ctx.widgets.widget(593).component(34).click();
-        Condition.sleep(600);
+        Condition.wait(new Callable<Boolean>() {
+            @Override
+            public Boolean call() throws Exception {
+                return ctx.combat.specialPercentage() < specialAttack;
+            }
+        },100,24);
     }
 
     private void resetCameraYaw(){
@@ -744,15 +751,20 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
         return !ctx.inventory.select().id(SPECIAL_WEAPONS).isEmpty();
     }
 
-    private int getEquipWeapon(){
+    private int getMainWeapon(){
         return ctx.equipment.itemAt(Equipment.Slot.MAIN_HAND).id();
     }
+
+    private int getOffHandWeapon(){return ctx.equipment.itemAt(Equipment.Slot.OFF_HAND).id();}
 
     private void equipSpecialWeapon(){
         if(!detectSpecialWeapon()){
             return;
         }
-        if(ctx.equipment.itemAt(Equipment.Slot.MAIN_HAND).id() == -1){
+        if(getMainWeapon() == -1){
+            return;
+        }
+        if(getOffHandWeapon() == -1){
             return;
         }
         ctx.game.tab(Game.Tab.INVENTORY);
@@ -761,7 +773,7 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
             @Override
             public Boolean call() throws Exception {
                 for(int i = 0; i < SPECIAL_WEAPONS.length; i++){
-                    return ctx.equipment.itemAt(Equipment.Slot.MAIN_HAND).id() == SPECIAL_WEAPONS[i];
+                    return getMainWeapon() == SPECIAL_WEAPONS[i];
                 }
                 return true;
             }
@@ -777,7 +789,21 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
         Condition.wait(new Callable<Boolean>() {
             @Override
             public Boolean call() throws Exception {
-                return ctx.equipment.itemAt(Equipment.Slot.MAIN_HAND).id() == weapon;
+                return getMainWeapon() == weapon;
+            }
+        });
+    }
+
+    private void equipOffHand(final int weapon){
+        if(ctx.inventory.select().id(offHandWeapon).isEmpty()){
+            return;
+        }
+        ctx.game.tab(Game.Tab.INVENTORY);
+        ctx.inventory.select().id(weapon).poll().click();
+        Condition.wait(new Callable<Boolean>() {
+            @Override
+            public Boolean call() throws Exception {
+                return getOffHandWeapon() == weapon;
             }
         });
     }
@@ -793,7 +819,7 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
         } else {
             g.setColor(new Color(255,0,0,64));
         }
-        g.fillPolygon(finalTile.matrix(ctx).bounds());
+        Paint.drawBorderPolygon(g, finalTile.matrix(ctx).bounds());
         Paint.drawCrosshair(g, ctx, 3);
         Paint.drawRectangleBordered(g,3,3,250, 100,2,COLOR_BACKGROUND,COLOR_BORDER);
         Paint.drawRectangleBordered(g,3,138,250, 200,2 ,COLOR_BACKGROUND, COLOR_BORDER);
@@ -890,9 +916,22 @@ public class ScoutsNMZ extends PollingScript<ClientContext> implements MessageLi
         }
         else if(msg.equals("your surge of special attack power has ended.")){
             equipMainHand(mainWeapon);
+            if(offHandWeapon > 0){
+                equipOffHand(offHandWeapon);
+            }
             ctx.camera.turnTo(finalTile);
             ctx.movement.step(finalTile);
             Condition.sleep(Random.nextInt(600, 1200));
+            if(ctx.prayer.prayerActive(Prayer.Effect.PROTECT_FROM_MELEE)){
+                ctx.prayer.prayer(Prayer.Effect.PROTECT_FROM_MELEE,false);
+            }
+            if(ctx.prayer.prayerActive(Prayer.Effect.RAPID_HEAL)){
+                ctx.prayer.prayer(Prayer.Effect.RAPID_HEAL, false);
+            }
+            equipMainHand(mainWeapon);
+            if(offHandWeapon > 0){
+                equipOffHand(offHandWeapon);
+            }
         }
     }
 
